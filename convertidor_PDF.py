@@ -1,47 +1,74 @@
 import img2pdf
 from PIL import Image # Necesario para verificar que el archivo es una imagen válida
 import sys # Para manejar argumentos de línea de comandos y salir si hay errores
+import os # Para listar el contenido de directorios y construir rutas
 
-def convertir_imagen_simple_a_pdf(ruta_imagen, ruta_pdf_salida):
+def convertir_imagenes_a_pdf(ruta_carpeta_imagenes, ruta_pdf_salida):
     """
-    Convierte una sola imagen a un archivo PDF sin muchas comprobaciones adicionales.
-    
+    Convierte todas las imágenes encontradas en una carpeta a un único archivo PDF.
+
     Args:
-        ruta_imagen (str): Ruta del archivo de imagen de entrada.
+        ruta_carpeta_imagenes (str): Ruta de la carpeta que contiene las imágenes.
         ruta_pdf_salida (str): Ruta donde se guardará el archivo PDF de salida.
     """
+    imagenes_a_convertir = []
+    extensiones_imagen_validas = ('.jpg', '.jpeg', '.png', '.gif', '.bmp', '.tiff', '.webp')
+
+    # 1. Verificar si la carpeta de entrada existe
+    if not os.path.isdir(ruta_carpeta_imagenes):
+        print(f"Error: La carpeta '{ruta_carpeta_imagenes}' no fue encontrada o no es un directorio.")
+        sys.exit(1)
+
+    # 2. Recorrer la carpeta y recolectar las rutas de las imágenes
+    print(f"Buscando imágenes en: '{ruta_carpeta_imagenes}'...")
+    for nombre_archivo in os.listdir(ruta_carpeta_imagenes):
+        # Construir la ruta completa del archivo
+        ruta_completa_archivo = os.path.join(ruta_carpeta_imagenes, nombre_archivo)
+
+        # Asegurarse de que es un archivo (no un subdirectorio) y que tiene una extensión de imagen válida
+        if os.path.isfile(ruta_completa_archivo) and nombre_archivo.lower().endswith(extensiones_imagen_validas):
+            try:
+                # Opcional: Intentar abrir la imagen con Pillow para una verificación básica de validez
+                # Esto es útil para evitar errores de img2pdf con archivos corruptos o no válidos
+                Image.open(ruta_completa_archivo).verify()
+                imagenes_a_convertir.append(ruta_completa_archivo)
+                print(f"  - Encontrada: {nombre_archivo}")
+            except Exception as e:
+                print(f"  - Advertencia: '{nombre_archivo}' parece no ser una imagen válida o está corrupta. Ignorando. ({e})")
+        else:
+            print(f"  - Ignorando: {nombre_archivo} (no es un archivo de imagen válido o es una carpeta)")
+
+    if not imagenes_a_convertir:
+        print(f"No se encontraron imágenes válidas en la carpeta '{ruta_carpeta_imagenes}'.")
+        sys.exit(1)
+
+    # Opcional: Ordenar las imágenes por nombre para asegurar un orden consistente en el PDF
+    imagenes_a_convertir.sort()
+    print(f"\nSe encontraron {len(imagenes_a_convertir)} imágenes válidas para convertir.")
+
+    # 3. Realizar la conversión a PDF
     try:
-        # Intenta abrir la imagen con Pillow para verificar su validez básica
-        # Esto lanzará un error si no es una imagen o está corrupta
-        Image.open(ruta_imagen).verify() 
-        
-        # Convierte la imagen a PDF
         with open(ruta_pdf_salida, "wb") as f:
-            f.write(img2pdf.convert(ruta_imagen))
+            f.write(img2pdf.convert(imagenes_a_convertir)) # img2pdf.convert ahora recibe una lista de rutas
         
-        print(f"La imagen '{ruta_imagen}' ha sido convertida a '{ruta_pdf_salida}' exitosamente.")
+        print(f"\nTodas las imágenes de '{ruta_carpeta_imagenes}' han sido convertidas a '{ruta_pdf_salida}' exitosamente.")
         
-    except FileNotFoundError:
-        print(f"Error: El archivo '{ruta_imagen}' no fue encontrado.")
-        sys.exit(1) # Sale del script con un código de error
     except Exception as e:
-        print(f"Error al procesar la imagen o convertir a PDF: {e}")
-        print("Asegúrate de que la ruta de la imagen es correcta y el archivo es una imagen válida.")
-        sys.exit(1) # Sale del script con un código de error
+        print(f"\nError al convertir las imágenes a PDF: {e}")
+        print("Asegúrate de que las imágenes son válidas y tienes permisos de escritura en la ruta de salida.")
+        sys.exit(1)
 
 # --- Uso del script desde la línea de comandos ---
 if __name__ == "__main__":
-    # Si ejecutas el script sin argumentos, te da una ayuda
+    # Ahora el script espera la ruta de la carpeta y el nombre del PDF
     if len(sys.argv) < 3:
-        print("Uso: python tu_script.py <ruta_de_imagen> <nombre_del_pdf_salida>")
-        print("Ejemplo: python tu_script.py mi_foto.jpg salida.pdf")
-        sys.exit(1) # Sale del script indicando que faltan argumentos
+        print("Uso: python tu_script.py <ruta_de_carpeta_de_imagenes> <nombre_del_pdf_salida>")
+        print("Ejemplo: python tu_script.py /home/chez/mis_fotos_vacaciones informe_final.pdf")
+        print("\nNota: Asegúrate de que las rutas son correctas y de que el entorno virtual esté activo.")
+        sys.exit(1)
 
-    # Los argumentos se obtienen de sys.argv:
-    # sys.argv[0] es el nombre del script
-    # sys.argv[1] es el primer argumento (la ruta de la imagen)
-    # sys.argv[2] es el segundo argumento (la ruta del PDF de salida)
-    imagen_entrada = sys.argv[1]
+    carpeta_imagenes_entrada = sys.argv[1]
     pdf_salida = sys.argv[2]
 
-    convertir_imagen_simple_a_pdf(imagen_entrada, pdf_salida)
+    convertir_imagenes_a_pdf(carpeta_imagenes_entrada, pdf_salida)
+    
