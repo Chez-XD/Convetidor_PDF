@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Convertidor de Imágenes a PDF Web</title>
+    <style>
+        /* Aquí va el CSS que te di */
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f4f4f4;
+            color: #333;
+        }
+        .container {
+            max-width: 700px;
+            margin: 30px auto;
+            padding: 25px;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .drop-area {
+            border: 2px dashed #ccc;
+            border-radius: 5px;
+            padding: 30px;
+            text-align: center;
+            font-size: 1.2em;
+            color: #777;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        .drop-area.highlight {
+            background-color: #e0e0e0;
+            border-color: #007bff;
+        }
+        input[type="text"], button {
+            width: 100%;
+            padding: 10px;
+            margin-top: 15px;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-size: 1.1em;
+            transition: background-color 0.3s ease;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        #message-area {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #e9ecef;
+            border-radius: 5px;
+            min-height: 50px;
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid #ced4da;
+        }
+        .file-list {
+            margin-top: 10px;
+            font-size: 0.9em;
+            color: #555;
+        }
+        .file-list div {
+            padding: 3px 0;
+            border-bottom: 1px dotted #eee;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Convertidor de Imágenes a PDF</h1>
+
+        <div id="drop-area" class="drop-area">
+            Arrastra y suelta imágenes aquí o haz clic para seleccionar
+            <input type="file" id="fileElem" multiple accept="image/*" style="display: none;">
+        </div>
+        <div id="file-list" class="file-list"></div>
+
+        <label for="pdfFileName">Nombre del archivo PDF de salida:</label>
+        <input type="text" id="pdfFileName" value="documento_web.pdf">
+
+        <button id="convertButton">Convertir a PDF (Solo Interfaz)</button>
+        
+        <div id="message-area">
+            Mensajes:
+        </div>
+    </div>
+
+    <script>
+        // --- Referencias a los elementos HTML ---
+        const dropArea = document.getElementById('drop-area');
+        const fileElem = document.getElementById('fileElem');
+        const fileListDiv = document.getElementById('file-list');
+        const pdfFileNameInput = document.getElementById('pdfFileName');
+        const convertButton = document.getElementById('convertButton');
+        const messageArea = document.getElementById('message-area');
+
+        let selectedFiles = []; // Almacenará los objetos File seleccionados
+
+        // --- Funciones para mostrar mensajes ---
+        function logMessage(message, type = 'info') {
+            const p = document.createElement('p');
+            p.textContent = message;
+            if (type === 'error') p.style.color = 'red';
+            if (type === 'success') p.style.color = 'green';
+            messageArea.appendChild(p);
+            messageArea.scrollTop = messageArea.scrollHeight; // Auto-scroll
+        }
+
+        function updateFileList() {
+            fileListDiv.innerHTML = ''; // Limpia la lista anterior
+            if (selectedFiles.length === 0) {
+                fileListDiv.innerHTML = '<div>No se han seleccionado imágenes.</div>';
+                return;
+            }
+            logMessage(`Imágenes seleccionadas: ${selectedFiles.length}`);
+            selectedFiles.forEach(file => {
+                fileListDiv.innerHTML += `<div>- ${file.name} (${(file.size / 1024).toFixed(2)} KB)</div>`;
+            });
+        }
+
+        // --- Manejo de eventos de arrastrar y soltar ---
+        ;['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dropArea.addEventListener(eventName, preventDefaults, false);
+            document.body.addEventListener(eventName, preventDefaults, false);
+        });
+
+        ;['dragenter', 'dragover'].forEach(eventName => {
+            dropArea.addEventListener(eventName, highlight, false);
+        });
+
+        ;['dragleave', 'drop'].forEach(eventName => {
+            dropArea.addEventListener(eventName, unhighlight, false);
+        });
+
+        dropArea.addEventListener('drop', handleDrop, false);
+
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        function highlight() {
+            dropArea.classList.add('highlight');
+        }
+
+        function unhighlight() {
+            dropArea.classList.remove('highlight');
+        }
+
+        function handleDrop(e) {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            handleFiles(files);
+        }
+
+        // --- Manejo de la selección de archivos (clic en el área de arrastre) ---
+        dropArea.addEventListener('click', () => {
+            fileElem.click(); // Simula un clic en el input de tipo file
+        });
+
+        fileElem.addEventListener('change', (e) => {
+            handleFiles(e.target.files);
+        });
+
+        function handleFiles(files) {
+            selectedFiles = [...files].filter(file => file.type.startsWith('image/')); // Filtra solo imágenes
+            updateFileList();
+        }
+
+        // --- Manejo del botón de convertir (¡Comunicación con el servidor!) ---
+        convertButton.addEventListener('click', async () => {
+            const pdfName = pdfFileNameInput.value;
+            if (selectedFiles.length === 0) {
+                logMessage('Por favor, arrastra o selecciona al menos una imagen.', 'error');
+                return;
+            }
+            if (!pdfName) {
+                logMessage('Por favor, ingresa un nombre para el archivo PDF.', 'error');
+                return;
+            }
+
+            logMessage(`\nIniciando conversión de ${selectedFiles.length} imágenes a "${pdfName}"...`);
+            convertButton.disabled = true; // Deshabilita el botón para evitar clics múltiples
+            convertButton.textContent = "Convirtiendo...";
+
+            const formData = new FormData();
+            selectedFiles.forEach(file => {
+                formData.append('files', file); // 'files' debe coincidir con el nombre esperado en Flask (request.files['files'])
+            });
+            formData.append('pdfName', pdfName); // Nombre del PDF
+
+            try {
+                // Envía los archivos y el nombre del PDF al servidor Flask
+                const response = await fetch('/convertir', {
+                    method: 'POST',
+                    body: formData // FormData se encarga de formatear los archivos correctamente
+                });
+
+                if (response.ok) {
+                    // Si la respuesta es exitosa (código 200), significa que el PDF está listo para descargar
+                    logMessage('¡PDF generado exitosamente! Iniciando descarga...', 'success');
+                    // Crea un objeto URL para el Blob (el contenido del PDF) y simula un clic para descargar
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.style.display = 'none';
+                    a.href = url;
+                    a.download = pdfName; // Nombre del archivo para la descarga
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url); // Libera la URL del objeto
+                    
+                    selectedFiles = []; // Limpia la lista de archivos después de la descarga
+                    updateFileList();
+                    logMessage('La descarga debería haber comenzado. Puedes seleccionar nuevas imágenes.');
+
+                } else {
+                    // Si hay un error, lee el mensaje JSON de error del servidor
+                    const errorData = await response.json();
+                    logMessage(`Error del servidor: ${errorData.message || 'Error desconocido.'}`, 'error');
+                }
+
+            } catch (error) {
+                logMessage(`Error de conexión o inesperado: ${error.message}`, 'error');
+            } finally {
+                convertButton.disabled = false; // Habilita el botón de nuevo
+                convertButton.textContent = "Convertir a PDF";
+            }
+        });
+
+        // Inicializar la lista de archivos al cargar
+        updateFileList();
+    </script>
+</body>
+</html>
