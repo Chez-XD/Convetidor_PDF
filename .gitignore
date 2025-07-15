@@ -6,9 +6,9 @@ venv/
 __pycache__/
 *.pyc
 
-# Ignorar archivos PDF generados (tus outputs)
+# Ignorar archivos PDF generados 
 *.pdf
 
-# Ignorar archivos de configuración del editor (ej. VS Code)
+# Ignorar archivos de configuración del editor 
 .vscode/
 .DS_Store
